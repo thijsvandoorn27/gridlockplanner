@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="About the person behind GridLock Planner.">
+  <title>About me — GridLock Planner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-100 font-sans text-slate-800">
+  <header class="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
+    <div class="mx-auto flex max-w-4xl items-center justify-between gap-4">
+      <a href="index.html" class="text-lg font-bold tracking-tight text-slate-900">
+        🔒 GridLock Planner
+      </a>
+      <a href="index.html" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+        Back to planner
+      </a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-16">
+    <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div class="h-2 bg-indigo-600"></div>
+      <div class="p-6 sm:p-10">
+        <p class="text-sm font-semibold uppercase tracking-wider text-indigo-600">About me</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Hello, I’m Thijs</h1>
+
+        <div class="mt-8 space-y-8 text-slate-600">
+          <section>
+            <h2 class="text-lg font-semibold text-slate-900">A little about me</h2>
+            <p class="mt-2 leading-7">I've long been struggling planning my time effectively and wanted to create a tool that would help me and others like me stay organized and focused.</p>
+          </section>
+
+          <section>
+            <h2 class="text-lg font-semibold text-slate-900">Why I’m building GridLock</h2>
+            <p class="mt-2 leading-7">I'm building GridLock to help people like me manage their time more effectively and reduce the stress that comes with trying to keep track of everything.</p>
+          </section>
+
+          <section>
+            <h2 class="text-lg font-semibold text-slate-900">Get in touch</h2>
+            <p class="mt-2 leading-7">Have feedback or a question? Leave your email address and a message below. Your address will not be displayed publicly; I can use it to reply.</p>
+            <form action="https://formspree.io/f/REPLACE_WITH_YOUR_FORM_ID" method="POST" class="mt-5 space-y-4">
+              <input type="hidden" name="_subject" value="GridLock Planner feedback">
+              <div>
+                <label for="contact-email" class="block text-sm font-medium text-slate-700">Your email address</label>
+                <input id="contact-email" name="email" type="email" autocomplete="email" required maxlength="254"
+                       placeholder="you@example.com"
+                       class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label for="contact-message" class="block text-sm font-medium text-slate-700">Feedback or message</label>
+                <textarea id="contact-message" name="message" rows="5" required maxlength="5000"
+                          placeholder="Write your message here…"
+                          class="mt-1.5 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+              </div>
+              <button id="contact-submit" type="submit" disabled class="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400">
+                Send message
+              </button>
+              <p id="contact-setup-note" class="text-sm text-amber-800" role="status">This feedback form is not connected yet. Set up a Formspree form and add its form ID before sharing the contact feature.</p>
+              <p class="text-xs leading-5 text-slate-500">Your email address and message will be sent to the site owner so they can respond. Please don’t include sensitive information.</p>
+            </form>
+          </section>
+        </div>
+
+        <p class="mt-10 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          Before publishing the form: create a form at <a href="https://formspree.io/" target="_blank" rel="noreferrer" class="font-medium text-indigo-700 underline underline-offset-2 hover:text-indigo-900">Formspree</a>, set its notification email to your private address, then replace <span class="font-mono text-slate-700">REPLACE_WITH_YOUR_FORM_ID</span> in this page’s form action with your form ID. The visitor’s email is included as the reply-to address. You can also edit the About Me text directly in <span class="font-mono text-slate-700">about.html</span>.
+        </p>
+      </div>
+    </article>
+  </main>
+  <script>
+    const form = document.querySelector("form");
+    const isConfigured = !form.action.includes("REPLACE_WITH_YOUR_FORM_ID");
+    document.getElementById("contact-submit").disabled = !isConfigured;
+    if (isConfigured) document.getElementById("contact-setup-note").classList.add("hidden");
+  </script>
+</body>
+</html>

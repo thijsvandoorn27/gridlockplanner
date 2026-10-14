@@ -1,0 +1,1298 @@
+It<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GridLock Planner</title>
+  <!-- Tailwind CSS CDN for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom interaction styles */
+    .slot-cel {
+      min-height: 85px;
+      transition: transform 0.1s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      user-select: none;
+    }
+    .slot-cel:hover {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+    }
+    .drag-over-ok {
+      outline: 3px solid #16a34a !important;
+      transform: scale(0.98);
+    }
+    .drag-over-niet {
+      outline: 3px solid #dc2626 !important;
+      transform: scale(0.98);
+    }
+    .dragging-source {
+      opacity: 0.45;
+      outline: 3px dashed #2563eb !important;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 px-6 py-4 shadow-sm">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+          <span>🔒</span> GridLock Planner
+        </h1>
+        <p class="text-sm text-slate-500">Automatically plan your work week based on priority and export it to your calendar.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button id="btn-load-sample" class="bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs sm:text-sm font-medium py-2 px-3 rounded-lg border border-amber-300 transition flex items-center gap-1.5" title="Load dog example">
+          <span>🐶</span> Load sample
+        </button>
+        <label for="json-file-input" class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium py-2 px-3 rounded-lg border border-slate-300 transition">
+          📂 Load config…
+        </label>
+        <input type="file" id="json-file-input" accept=".json" class="hidden">
+        <button id="btn-save-json" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-medium py-2 px-3 rounded-lg border border-slate-300 transition">
+          💾 Save…
+        </button>
+        <a href="about.html" class="bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-medium py-2 px-3 rounded-lg border border-slate-300 transition">
+          About me
+        </a>
+        <div class="relative inline-block">
+          <button id="btn-export-calendar" class="group bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs sm:text-sm font-medium py-2.5 px-3.5 rounded-xl shadow-sm ring-1 ring-indigo-400/60 transition-all duration-200 flex items-center gap-2">
+            <span class="text-base">📅</span>
+            <span>Export to calendar</span>
+            <span class="text-base leading-none transition-transform duration-200 group-[.menu-open]:rotate-180">▾</span>
+          </button>
+          <div id="export-menu" class="hidden absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-xl shadow-xl ring-1 ring-slate-200/80 z-20 overflow-hidden backdrop-blur-sm">
+            <button id="btn-export-google" class="w-full text-left px-3.5 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 transition flex items-center gap-2.5">
+              <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">📆</span>
+              <span>Google Calendar</span>
+            </button>
+            <button id="btn-export-ics" class="w-full text-left px-3.5 py-2.5 text-sm text-slate-700 hover:bg-indigo-50 transition flex items-center gap-2.5 border-t border-slate-100">
+              <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-indigo-100 text-indigo-700">📄</span>
+              <span>Export .ics</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main section -->
+  <main class="max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+    
+    <!-- Left panel: Activities -->
+    <aside class="lg:col-span-4 bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col gap-6">
+      <!-- Add new activity -->
+      <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 order-1">
+        <h3 class="text-sm font-semibold text-slate-800 mb-2.5">Add new activity</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1" for="nieuwe-naam">Activity name</label>
+            <input type="text" id="nieuwe-naam" placeholder="e.g. Sleep or Walk" 
+                   class="w-full text-sm px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <div class="flex justify-between items-center text-xs font-medium text-slate-600 mb-1">
+              <span>Priority</span>
+              <span id="nieuwe-prio-label" class="font-bold text-indigo-600">Medium</span>
+            </div>
+            <input type="range" id="nieuwe-prio" min="1" max="4" value="2" step="1"
+                   class="w-full accent-indigo-600 cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+              <span>Low</span>
+              <span>Medium</span>
+              <span>High</span>
+              <span>Very high</span>
+            </div>
+          </div>
+          <button id="btn-voeg-toe" class="w-full mt-2 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-4 rounded-lg text-sm transition">
+            + Add activity
+          </button>
+        </div>
+      </div>
+
+      <div class="order-2">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-slate-900">Activities</h2>
+          <span id="activiteiten-teller" class="text-xs bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full border border-slate-200">0</span>
+        </div>
+        
+        <!-- Activities list -->
+        <div id="activiteiten-lijst" class="mt-4 space-y-3">
+          <!-- Dynamically built -->
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Right panel: Schedule -->
+    <section class="lg:col-span-8 flex flex-col gap-4">
+      
+      <!-- Week navigation & block length toggle -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
+        <!-- Navigate week -->
+        <div class="col-span-full sm:col-span-1 sm:col-start-2 sm:row-start-1 justify-self-center flex items-center justify-center gap-2">
+          <button id="btn-prev-week" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 transition" title="Previous week">
+            ◀
+          </button>
+          <span id="week-label" class="font-bold text-slate-800 text-sm sm:text-base min-w-[200px] text-center">
+            Week of -- to --
+          </span>
+          <button id="btn-next-week" class="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 transition" title="Next week">
+            ▶
+          </button>
+        </div>
+
+        <!-- Block length toggle -->
+        <div class="col-span-full sm:col-span-3 sm:col-start-1 sm:row-start-2 justify-self-center flex flex-wrap justify-center items-center gap-3 bg-slate-50 border border-slate-200 py-1.5 px-3 rounded-lg text-sm">
+          <div class="flex items-center gap-2 pr-3 border-r border-slate-200">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Work hours:</span>
+            <button id="btn-hours-down" class="w-7 h-7 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-bold" aria-label="Decrease work hours">−</button>
+            <span id="work-hours-label" class="min-w-[4.5rem] text-center font-semibold text-slate-700">6 h / day</span>
+            <button id="btn-hours-up" class="w-7 h-7 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-bold" aria-label="Increase work hours">+</button>
+          </div>
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Block length:</span>
+          <div class="inline-flex rounded-lg border border-slate-200 bg-white p-0.5" role="group" aria-label="Block length">
+            <button id="label-120m" type="button" class="rounded-md px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 transition" aria-pressed="false">2 hours</button>
+            <button id="label-90m" type="button" class="rounded-md px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 transition" aria-pressed="false">1.5 hours</button>
+            <button id="label-60m" type="button" class="rounded-md px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 transition" aria-pressed="false">1 hour</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule view -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 overflow-x-auto">
+        <div id="rooster-container" class="min-w-[620px]">
+          <!-- Weekly schedule generated in JS -->
+        </div>
+      </div>
+
+      <!-- Instructions & summary & action buttons -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col gap-3">
+        <div class="text-xs text-slate-500 flex items-center gap-2">
+          <span>💡</span>
+          <span><strong>Controls:</strong> Higher priority = more blocks in your week. Click a cell to mark it occupied or free. Drag a scheduled block onto another block to swap them.</span>
+        </div>
+
+        <div id="samenvatting-tekst" class="text-xs sm:text-sm text-slate-700 font-medium py-2 px-3 bg-slate-50 rounded-lg border border-slate-200">
+          Loading…
+        </div>
+        <div id="app-message" class="hidden text-xs sm:text-sm px-3 py-2 rounded-lg" role="alert" aria-live="polite"></div>
+
+        <!-- Action bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div class="flex items-center gap-2">
+            <button id="btn-undo" class="text-xs sm:text-sm font-medium px-3.5 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5" title="Ctrl+Z">
+              <span>↩</span> Undo
+            </button>
+            <button id="btn-replan" class="text-xs sm:text-sm font-medium px-3.5 py-2 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5">
+              <span>🔄</span> Re-plan
+            </button>
+          </div>
+          <button id="btn-clear-busy" class="text-xs sm:text-sm font-medium px-4 py-2 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 hover:border-amber-300 transition flex items-center gap-1.5">
+            <span>↺</span> Reset
+          </button>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    /* Activity color palette */
+    const KLEUREN = [
+      "#BBDEFB", "#C8E6C9", "#FFE0B2", "#E1BEE7", "#FFF9C4",
+      "#B2DFDB", "#F8BBD0", "#D7CCC8", "#DCEDC8", "#CFD8DC"
+    ];
+    const BEZET_BG = "#64748b";      // Dark slate gray
+    const DEELS_BG = "#cbd5e1";      // Light slate gray
+    const LEEG_BG  = "#f8fafc";      // Neutral empty
+
+    const DAGEN = ["ma", "di", "wo", "do", "vr"];
+    const DAGNAMEN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const PRIORITEITEN = { 1: "Low", 2: "Medium", 3: "High", 4: "Very High" };
+    const PRIORITEIT_GEWICHT = { 1: 1.0, 2: 2.0, 3: 3.0, 4: 4.0 };
+
+    const WORKDAY_START_MINUTES = 9 * 60;
+    const LUNCH_AFTER_UNITS = 6;
+    const LUNCH_BREAK_MINUTES = 90;
+
+    function getRooster(minuten = state.blokminuten, werkuren = state.werkuren) {
+      const blokEenheden = minuten / 30;
+      const totaalEenheden = werkuren * 2;
+      const naarKloktijd = (eenheid, isBegin) => {
+        const lunchOffset = eenheid > LUNCH_AFTER_UNITS || (isBegin && eenheid === LUNCH_AFTER_UNITS)
+          ? LUNCH_BREAK_MINUTES
+          : 0;
+        const totaalMinuten = WORKDAY_START_MINUTES + eenheid * 30 + lunchOffset;
+        return `${String(Math.floor(totaalMinuten / 60)).padStart(2, "0")}:${String(totaalMinuten % 60).padStart(2, "0")}`;
+      };
+      const blokken = [];
+      const dagDelen = [[0, Math.min(LUNCH_AFTER_UNITS, totaalEenheden)]];
+      if (totaalEenheden > LUNCH_AFTER_UNITS) {
+        dagDelen.push([LUNCH_AFTER_UNITS, totaalEenheden]);
+      }
+
+      for (const [deelStart, deelEind] of dagDelen) {
+        for (let startEenheid = deelStart; startEenheid < deelEind; startEenheid += blokEenheden) {
+          const eindEenheid = Math.min(startEenheid + blokEenheden, deelEind);
+          blokken.push({
+            begin: naarKloktijd(startEenheid, true),
+            eind: naarKloktijd(eindEenheid, false),
+            startEenheid,
+            eindEenheid,
+            minuten: (eindEenheid - startEenheid) * 30
+          });
+        }
+      }
+
+      return { minuten, aantal: blokken.length, blokken };
+    }
+
+    function getEenhedenVoorBlok(blokIndex, minuten) {
+      const res = [];
+      const blok = getRooster(minuten).blokken[blokIndex];
+      if (!blok) return res;
+      for (let eenheid = blok.startEenheid; eenheid < blok.eindEenheid; eenheid++) {
+        res.push(eenheid);
+      }
+      return res;
+    }
+
+    function getVolgendeMaandag(d = new Date()) {
+      const copy = new Date(d);
+      const dag = copy.getDay();
+      const dagenTotMaandag = (dag === 0 ? 1 : (8 - dag));
+      copy.setDate(copy.getDate() + dagenTotMaandag);
+      copy.setHours(0, 0, 0, 0);
+      return copy;
+    }
+
+    /* Application state: START COMPLETELY EMPTY ON REFRESH */
+    const state = {
+      blokminuten: 90,
+      werkuren: 6,
+      activiteiten: {},           // Empty on refresh
+      eenheden: new Set(),        // Empty on refresh (no occupied blocks)
+      planning: {},               // Empty schedule
+      aangepast: false,
+      geschiedenis: [],
+      startDatum: getVolgendeMaandag(),
+      draggedSlotKey: null
+    };
+
+    function berekenQuota(gewichtenDict, aantalSlots) {
+      let totaal = 0;
+      for (let k in gewichtenDict) totaal += gewichtenDict[k];
+      if (totaal <= 0 || aantalSlots <= 0) return {};
+
+      const exact = {};
+      const quota = {};
+      for (let k in gewichtenDict) {
+        exact[k] = (gewichtenDict[k] / totaal) * aantalSlots;
+        quota[k] = Math.floor(exact[k]);
+      }
+
+      let reeds = Object.values(quota).reduce((a, b) => a + b, 0);
+      let rest = aantalSlots - reeds;
+
+      const gesorteerd = Object.keys(exact).sort((a, b) => (exact[b] - quota[b]) - (exact[a] - quota[a]));
+      for (let i = 0; i < rest; i++) {
+        quota[gesorteerd[i]] += 1;
+      }
+      return quota;
+    }
+
+    function getBezetteSlots(eenhedenSet, minuten) {
+      const rooster = getRooster(minuten);
+      const bezet = new Set();
+      const deels = new Set();
+
+      for (let d = 0; d < 5; d++) {
+        for (let b = 0; b < rooster.aantal; b++) {
+          const unitList = getEenhedenVoorBlok(b, minuten);
+          const present = unitList.filter(u => eenhedenSet.has(`${d}_${u}`));
+          const key = `${d}_${b}`;
+          if (present.length > 0) {
+            bezet.add(key);
+            if (present.length < unitList.length) {
+              deels.add(key);
+            }
+          }
+        }
+      }
+      return { bezet, deels };
+    }
+
+    function maakAutomatischePlanning() {
+      const rooster = getRooster();
+      const { bezet } = getBezetteSlots(state.eenheden, state.blokminuten);
+      const vrij = [];
+
+      for (let d = 0; d < 5; d++) {
+        for (let b = 0; b < rooster.aantal; b++) {
+          const key = `${d}_${b}`;
+          if (!bezet.has(key)) {
+            vrij.push({ dag: d, blok: b, key });
+          }
+        }
+      }
+
+      if (vrij.length === 0 || Object.keys(state.activiteiten).length === 0) {
+        state.planning = {};
+        return;
+      }
+
+      const gew = {};
+      for (let naam in state.activiteiten) {
+        gew[naam] = PRIORITEIT_GEWICHT[state.activiteiten[naam]] || 2.0;
+      }
+
+      const quota = berekenQuota(gew, vrij.reduce((totaal, slot) => totaal + rooster.blokken[slot.blok].minuten, 0));
+      const rest = { ...quota };
+      const perDag = {};
+      const planning = {};
+      const kleinsteBlokMinuten = Math.min(...rooster.blokken.map(blok => blok.minuten));
+      const langsteEerst = [...vrij].sort((a, b) =>
+        rooster.blokken[b.blok].minuten - rooster.blokken[a.blok].minuten ||
+        a.dag - b.dag ||
+        a.blok - b.blok
+      );
+
+      for (const slot of langsteEerst) {
+        const slotMinuten = rooster.blokken[slot.blok].minuten;
+        let kandidaten = Object.keys(rest).filter(naam => rest[naam] > 0);
+        if (slotMinuten > kleinsteBlokMinuten && kandidaten.length > 0) {
+          const hoogstePrioriteit = Math.max(...kandidaten.map(naam => state.activiteiten[naam]));
+          kandidaten = kandidaten.filter(naam => state.activiteiten[naam] === hoogstePrioriteit);
+        }
+        if (kandidaten.length === 0) kandidaten = Object.keys(rest);
+
+        function score(naam) {
+          let s = rest[naam] * 1.0;
+          const dagCount = perDag[`${slot.dag}_${naam}`] || 0;
+          s -= 1.5 * dagCount;
+          const prevKey = `${slot.dag}_${slot.blok - 1}`;
+          if (planning[prevKey] === naam) {
+            s -= 1.0;
+          }
+          s += (gew[naam] || 0) / 1000;
+          return s;
+        }
+
+        let besteNaam = kandidaten[0];
+        let besteScore = score(besteNaam);
+        for (let i = 1; i < kandidaten.length; i++) {
+          const sc = score(kandidaten[i]);
+          if (sc > besteScore) {
+            besteScore = sc;
+            besteNaam = kandidaten[i];
+          }
+        }
+
+        planning[slot.key] = besteNaam;
+        rest[besteNaam] -= slotMinuten;
+        perDag[`${slot.dag}_${besteNaam}`] = (perDag[`${slot.dag}_${besteNaam}`] || 0) + 1;
+      }
+
+      state.planning = planning;
+    }
+
+    function herstelHandmatigePlanning() {
+      const rooster = getRooster();
+      const { bezet } = getBezetteSlots(state.eenheden, state.blokminuten);
+      const geldigeSlots = new Set();
+
+      for (const slotKey in state.planning) {
+        const [dag, blok] = slotKey.split("_").map(Number);
+        if (bezet.has(slotKey) || dag < 0 || dag >= 5 || blok < 0 || blok >= rooster.aantal) {
+          delete state.planning[slotKey];
+        }
+      }
+
+      if (Object.keys(state.activiteiten).length === 0) {
+        state.planning = {};
+        return;
+      }
+
+      const vrijKeys = [];
+      for (let d = 0; d < 5; d++) {
+        for (let b = 0; b < rooster.aantal; b++) {
+          const key = `${d}_${b}`;
+          if (!bezet.has(key)) {
+            vrijKeys.push(key);
+            geldigeSlots.add(key);
+          }
+        }
+      }
+
+      const gew = {};
+      for (let naam in state.activiteiten) {
+        gew[naam] = PRIORITEIT_GEWICHT[state.activiteiten[naam]] || 2.0;
+      }
+      const totaleMinuten = vrijKeys.reduce((totaal, key) => {
+        const blokIndex = Number(key.split("_")[1]);
+        return totaal + rooster.blokken[blokIndex].minuten;
+      }, 0);
+      const doel = berekenQuota(gew, totaleMinuten);
+      const kleinsteBlokMinuten = Math.min(...rooster.blokken.map(blok => blok.minuten));
+
+      const geplandMinuten = {};
+      for (const [key, naam] of Object.entries(state.planning)) {
+        if (geldigeSlots.has(key)) {
+          const blokIndex = Number(key.split("_")[1]);
+          geplandMinuten[naam] = (geplandMinuten[naam] || 0) + rooster.blokken[blokIndex].minuten;
+        }
+      }
+
+      const langsteEerst = vrijKeys.sort((a, b) => {
+        const blokA = Number(a.split("_")[1]);
+        const blokB = Number(b.split("_")[1]);
+        return rooster.blokken[blokB].minuten - rooster.blokken[blokA].minuten ||
+          Number(a.split("_")[0]) - Number(b.split("_")[0]) ||
+          blokA - blokB;
+      });
+      for (const key of langsteEerst) {
+        if (!state.planning[key]) {
+          const blokIndex = Number(key.split("_")[1]);
+          const slotMinuten = rooster.blokken[blokIndex].minuten;
+          let kandidaten = Object.keys(state.activiteiten)
+            .filter(naam => (doel[naam] || 0) > (geplandMinuten[naam] || 0));
+          if (slotMinuten > kleinsteBlokMinuten && kandidaten.length > 0) {
+            const hoogstePrioriteit = Math.max(...kandidaten.map(naam => state.activiteiten[naam]));
+            kandidaten = kandidaten.filter(naam => state.activiteiten[naam] === hoogstePrioriteit);
+          }
+          if (kandidaten.length === 0) kandidaten = Object.keys(state.activiteiten);
+          let besteNaam = null;
+          let maxTekort = -Infinity;
+          for (const naam of kandidaten) {
+            const tekort = (doel[naam] || 0) - (geplandMinuten[naam] || 0);
+            const score = tekort * 10 + (state.activiteiten[naam] || 0);
+            if (score > maxTekort) {
+              maxTekort = score;
+              besteNaam = naam;
+            }
+          }
+          if (besteNaam) {
+            state.planning[key] = besteNaam;
+            geplandMinuten[besteNaam] = (geplandMinuten[besteNaam] || 0) + slotMinuten;
+          }
+        }
+      }
+    }
+
+    function slaGeschiedenisOp() {
+      state.geschiedenis.push({
+        planning: { ...state.planning },
+        eenheden: new Set(state.eenheden),
+        aangepast: state.aangepast,
+        blokminuten: state.blokminuten,
+        werkuren: state.werkuren
+      });
+      if (state.geschiedenis.length > 50) {
+        state.geschiedenis.shift();
+      }
+    }
+
+    function ongedaanMaken() {
+      if (state.geschiedenis.length === 0) return;
+      const vorige = state.geschiedenis.pop();
+      state.planning = { ...vorige.planning };
+      state.eenheden = new Set(vorige.eenheden);
+      state.aangepast = vorige.aangepast;
+      state.blokminuten = vorige.blokminuten;
+      state.werkuren = vorige.werkuren;
+      renderAlle();
+    }
+
+    function resetPlanner() {
+      if (state.eenheden.size === 0 && Object.keys(state.planning).length === 0) {
+        return;
+      }
+      slaGeschiedenisOp();
+      state.eenheden.clear();
+      state.planning = {};
+      state.aangepast = false;
+
+      if (Object.keys(state.activiteiten).length > 0) {
+        maakAutomatischePlanning();
+      }
+      renderAlle();
+    }
+
+    function toonFout(bericht) {
+      const melding = document.getElementById("app-message");
+      melding.textContent = bericht;
+      melding.className = "text-xs sm:text-sm px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700";
+    }
+
+    function getKleurVoorActiviteit(naam) {
+      const namen = Object.keys(state.activiteiten);
+      const index = namen.indexOf(naam);
+      if (index === -1) return "#e2e8f0";
+      return KLEUREN[index % KLEUREN.length];
+    }
+
+    function formatDatum(d) {
+      const dag = String(d.getDate()).padStart(2, '0');
+      const mnd = String(d.getMonth() + 1).padStart(2, '0');
+      return `${dag}/${mnd}`;
+    }
+
+    function formatDatumCompleet(d) {
+      const dag = String(d.getDate()).padStart(2, '0');
+      const mnd = String(d.getMonth() + 1).padStart(2, '0');
+      const jr = d.getFullYear();
+      return `${dag}-${mnd}-${jr}`;
+    }
+
+    function updateHeaderInfo() {
+      const eindDatum = new Date(state.startDatum);
+      eindDatum.setDate(eindDatum.getDate() + 4);
+
+      document.getElementById("week-label").textContent = 
+        `Week of ${formatDatumCompleet(state.startDatum)} to ${formatDatumCompleet(eindDatum)}`;
+
+      document.getElementById("work-hours-label").textContent = `${state.werkuren} h / day`;
+      document.getElementById("btn-hours-down").disabled = state.werkuren <= 6;
+      document.getElementById("btn-hours-up").disabled = state.werkuren >= 8;
+      for (const [id, minutes] of [["label-120m", 120], ["label-90m", 90], ["label-60m", 60]]) {
+        const button = document.getElementById(id);
+        const selected = state.blokminuten === minutes;
+        button.setAttribute("aria-pressed", String(selected));
+        button.className = selected
+          ? "rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm transition"
+          : "rounded-md px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 transition";
+      }
+    }
+
+    function hernoemActiviteit(oudeNaam, nieuweNaam) {
+      const trimmed = (nieuweNaam || "").trim();
+      if (!trimmed) return false;
+      if (oudeNaam === trimmed) {
+        return false;
+      }
+      if (state.activiteiten[trimmed] && trimmed !== oudeNaam) return false;
+
+      const prio = state.activiteiten[oudeNaam];
+      delete state.activiteiten[oudeNaam];
+      state.activiteiten[trimmed] = prio;
+
+      Object.keys(state.planning).forEach(slotKey => {
+        if (state.planning[slotKey] === oudeNaam) {
+          state.planning[slotKey] = trimmed;
+        }
+      });
+
+      return true;
+    }
+
+    function renderActiviteitenLijst() {
+      const container = document.getElementById("activiteiten-lijst");
+      const teller = document.getElementById("activiteiten-teller");
+      container.innerHTML = "";
+
+      const keys = Object.keys(state.activiteiten);
+      teller.textContent = keys.length;
+
+      if (keys.length === 0) {
+        container.innerHTML = `
+          <div class="p-4 border border-dashed border-slate-300 rounded-lg text-center text-xs text-slate-400 space-y-3">
+            <div>The schedule is empty. Add an activity below or click <em>Load sample</em>.</div>
+            <button id="btn-load-sample-empty" class="mx-auto inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition">
+              Load sample
+            </button>
+          </div>
+        `;
+        const sampleBtn = document.getElementById("btn-load-sample-empty");
+        if (sampleBtn) {
+          sampleBtn.addEventListener("click", laadVoorbeeldData);
+        }
+        return;
+      }
+
+      keys.forEach((naam, idx) => {
+        const kleur = KLEUREN[idx % KLEUREN.length];
+        const prio = state.activiteiten[naam];
+
+        const row = document.createElement("div");
+        row.className = "bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col gap-2";
+
+        row.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 overflow-hidden">
+              <span class="w-3.5 h-3.5 rounded-full flex-shrink-0 shadow-sm" style="background-color: ${kleur};"></span>
+              <span class="activity-name-display text-sm font-semibold text-slate-800 truncate cursor-pointer" title="${naam}" data-naam="${naam}">${naam}</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button class="btn-edit text-slate-400 hover:text-indigo-600 font-bold px-1.5 py-0.5 rounded transition text-sm" title="Rename" data-naam="${naam}">
+                ✎
+              </button>
+              <button class="btn-del text-slate-400 hover:text-red-600 font-bold px-1.5 py-0.5 rounded transition text-sm" title="Remove" data-naam="${naam}">
+                ✕
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-xs">
+            <input type="range" min="1" max="4" step="1" value="${prio}" class="slider-prio w-full accent-indigo-600 cursor-pointer" data-naam="${naam}">
+            <span class="font-medium text-slate-600 whitespace-nowrap min-w-[70px] text-right">${PRIORITEITEN[prio]}</span>
+          </div>
+        `;
+
+        container.appendChild(row);
+      });
+
+      container.querySelectorAll(".activity-name-display").forEach(display => {
+        display.addEventListener("click", () => {
+          const oudeNaam = display.dataset.naam;
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = oudeNaam;
+          input.className = "activity-name-input w-full border border-indigo-300 rounded-md bg-white px-2 py-1 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500";
+          input.dataset.naam = oudeNaam;
+          display.replaceWith(input);
+          input.focus();
+          input.select();
+
+          const saveName = () => {
+            const nieuweNaam = input.value.trim();
+            if (!nieuweNaam) {
+              renderAlle();
+              return;
+            }
+            if (nieuweNaam === oudeNaam) {
+              renderAlle();
+              return;
+            }
+            if (state.activiteiten[nieuweNaam] && nieuweNaam !== oudeNaam) {
+              renderAlle();
+              toonFout("This activity already exists. Please choose a different name.");
+              return;
+            }
+
+            slaGeschiedenisOp();
+            if (hernoemActiviteit(oudeNaam, nieuweNaam)) {
+              state.aangepast = false;
+              maakAutomatischePlanning();
+              renderAlle();
+            } else {
+              renderAlle();
+              toonFout("Please choose a valid, unique activity name.");
+            }
+          };
+
+          input.addEventListener("blur", saveName, { once: true });
+          input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              input.blur();
+            }
+            if (event.key === "Escape") {
+              renderAlle();
+            }
+          });
+        });
+      });
+
+      container.querySelectorAll(".btn-edit").forEach(btn => {
+        btn.addEventListener("click", (event) => {
+          const row = event.currentTarget.closest(".bg-slate-50");
+          row.querySelector(".activity-name-display").click();
+        });
+      });
+
+      container.querySelectorAll(".btn-del").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const naam = e.currentTarget.dataset.naam;
+          slaGeschiedenisOp();
+          delete state.activiteiten[naam];
+          state.aangepast = false;
+          maakAutomatischePlanning();
+          renderAlle();
+        });
+      });
+
+      container.querySelectorAll(".slider-prio").forEach(slider => {
+        slider.addEventListener("change", (e) => {
+          const naam = e.currentTarget.dataset.naam;
+          const nieuwNiveau = parseInt(e.currentTarget.value);
+          if (state.activiteiten[naam] === nieuwNiveau) return;
+
+          slaGeschiedenisOp();
+          state.activiteiten[naam] = nieuwNiveau;
+          state.aangepast = false;
+          maakAutomatischePlanning();
+          renderAlle();
+        });
+      });
+    }
+
+    function renderRooster() {
+      const container = document.getElementById("rooster-container");
+      container.innerHTML = "";
+
+      const rooster = getRooster();
+      const { bezet, deels } = getBezetteSlots(state.eenheden, state.blokminuten);
+
+      const grid = document.createElement("div");
+      grid.className = "grid grid-cols-6 gap-2 text-center text-xs";
+
+      // Top-left corner
+      const corner = document.createElement("div");
+      corner.className = "p-2 font-semibold text-slate-400 flex items-center justify-center";
+      corner.textContent = "Block / Time";
+      grid.appendChild(corner);
+
+      // Day headers
+      for (let d = 0; d < 5; d++) {
+        const curDate = new Date(state.startDatum);
+        curDate.setDate(curDate.getDate() + d);
+
+        const dHeader = document.createElement("div");
+        dHeader.className = "bg-slate-100 p-2.5 rounded-lg border border-slate-200 font-bold text-slate-700";
+        dHeader.innerHTML = `<div>${DAGNAMEN[d]}</div><div class="text-[11px] font-normal text-slate-500">${formatDatum(curDate)}</div>`;
+        grid.appendChild(dHeader);
+      }
+
+      // Rows per block
+      rooster.blokken.forEach((blok, b) => {
+        const tLabel = document.createElement("div");
+        tLabel.className = "p-2 flex flex-col items-center justify-center bg-slate-50 border border-slate-200 rounded-lg text-slate-600 font-medium";
+        tLabel.innerHTML = `<span class="font-bold text-slate-800">Block ${b + 1}</span><span class="text-[10px] text-slate-500">${blok.begin}–${blok.eind}</span>`;
+        grid.appendChild(tLabel);
+
+        for (let d = 0; d < 5; d++) {
+          const slotKey = `${d}_${b}`;
+          const isBezet = bezet.has(slotKey);
+          const isDeels = deels.has(slotKey);
+          const ingepland = state.planning[slotKey];
+
+          const cel = document.createElement("div");
+          cel.className = "slot-cel border rounded-lg p-2.5 flex flex-col justify-between items-center text-center cursor-pointer transition relative";
+          cel.dataset.slotKey = slotKey;
+
+          if (isDeels) {
+            cel.style.backgroundColor = DEELS_BG;
+            cel.className += " border-slate-400 text-slate-800";
+            cel.innerHTML = `<span class="font-semibold text-xs mt-auto">Partially occupied</span><span class="text-[10px] text-slate-600 mb-auto">(click = free)</span>`;
+          } else if (isBezet) {
+            cel.style.backgroundColor = BEZET_BG;
+            cel.className += " border-slate-600 text-white";
+            cel.innerHTML = `<span class="font-semibold text-xs mt-auto">Occupied</span><span class="text-[10px] text-slate-200 mb-auto">(click = free)</span>`;
+          } else if (ingepland) {
+            const bgKleur = getKleurVoorActiviteit(ingepland);
+            cel.style.backgroundColor = bgKleur;
+            cel.className += " border-slate-300 text-slate-900";
+            cel.draggable = true;
+            cel.innerHTML = `
+              <div class="text-xs sm:text-sm font-semibold my-auto line-clamp-2">${ingepland}</div>
+              <div class="text-[9px] text-slate-500 w-full text-right">↔ drag</div>
+            `;
+          } else {
+            cel.style.backgroundColor = LEEG_BG;
+            cel.className += " border-dashed border-slate-300 text-slate-400";
+            cel.innerHTML = `<span class="my-auto text-sm">—</span><span class="text-[9px] text-slate-400">(free)</span>`;
+          }
+
+          setupDragAndDrop(cel, slotKey, isBezet);
+
+          cel.addEventListener("click", () => {
+            if (cel.getAttribute("data-just-dragged") === "true") {
+              cel.removeAttribute("data-just-dragged");
+              return;
+            }
+            toggleBezetting(d, b);
+          });
+
+          grid.appendChild(cel);
+        }
+      });
+
+      container.appendChild(grid);
+      updateSamenvatting();
+    }
+
+    function setupDragAndDrop(cel, slotKey, isBezet) {
+      cel.addEventListener("dragstart", (e) => {
+        if (isBezet || !state.planning[slotKey]) {
+          e.preventDefault();
+          return;
+        }
+        state.draggedSlotKey = slotKey;
+        e.dataTransfer.setData("text/plain", slotKey);
+        e.dataTransfer.effectAllowed = "move";
+        cel.classList.add("dragging-source");
+      });
+
+      cel.addEventListener("dragend", () => {
+        cel.classList.remove("dragging-source");
+        cel.setAttribute("data-just-dragged", "true");
+        setTimeout(() => cel.removeAttribute("data-just-dragged"), 200);
+      });
+
+      cel.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (!state.draggedSlotKey || state.draggedSlotKey === slotKey) return;
+        e.dataTransfer.dropEffect = isBezet ? "none" : "move";
+        if (isBezet) {
+          cel.classList.add("drag-over-niet");
+        } else {
+          cel.classList.add("drag-over-ok");
+        }
+      });
+
+      cel.addEventListener("dragleave", () => {
+        cel.classList.remove("drag-over-ok", "drag-over-niet");
+      });
+
+      cel.addEventListener("drop", (e) => {
+        e.preventDefault();
+        cel.classList.remove("drag-over-ok", "drag-over-niet");
+        const sourceKey = state.draggedSlotKey;
+        state.draggedSlotKey = null;
+
+        if (!sourceKey || sourceKey === slotKey || isBezet) return;
+        wisselSlots(sourceKey, slotKey);
+      });
+    }
+
+    function wisselSlots(keyA, keyB) {
+      const actA = state.planning[keyA];
+      const actB = state.planning[keyB];
+
+      if (!actA && !actB) return;
+      if (actA === actB) return;
+
+      slaGeschiedenisOp();
+
+      if (actB) {
+        state.planning[keyA] = actB;
+      } else {
+        delete state.planning[keyA];
+      }
+
+      if (actA) {
+        state.planning[keyB] = actA;
+      } else {
+        delete state.planning[keyB];
+      }
+
+      state.aangepast = true;
+      renderAlle();
+    }
+
+    function toggleBezetting(dag, blok) {
+      slaGeschiedenisOp();
+      const units = getEenhedenVoorBlok(blok, state.blokminuten);
+      const allPresent = units.every(u => state.eenheden.has(`${dag}_${u}`));
+
+      if (allPresent) {
+        units.forEach(u => state.eenheden.delete(`${dag}_${u}`));
+      } else {
+        units.forEach(u => state.eenheden.add(`${dag}_${u}`));
+      }
+
+      if (state.aangepast) {
+        herstelHandmatigePlanning();
+      } else {
+        maakAutomatischePlanning();
+      }
+      renderAlle();
+    }
+
+    function updateSamenvatting() {
+      const rooster = getRooster();
+      const { bezet } = getBezetteSlots(state.eenheden, state.blokminuten);
+      const totaalSlots = 5 * rooster.aantal;
+      const aantalVrij = totaalSlots - bezet.size;
+      const samenvattingEl = document.getElementById("samenvatting-tekst");
+
+      const tel = {};
+      Object.values(state.planning).forEach(n => { tel[n] = (tel[n] || 0) + 1; });
+
+      if (Object.keys(state.planning).length > 0) {
+        const gesorteerd = Object.keys(state.activiteiten).sort((a, b) => (tel[b] || 0) - (tel[a] || 0));
+        const verdelingTekst = gesorteerd.map(n => `<span class="font-semibold text-slate-800">${n}:</span> ${tel[n] || 0}`).join(" &nbsp;·&nbsp; ");
+        const aangepastTekst = state.aangepast ? `<span class="ml-2 text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Manually adjusted</span>` : "";
+
+        samenvattingEl.innerHTML = `
+          <div class="flex flex-wrap items-center gap-1.5 leading-normal">
+            <span><strong>${Object.keys(state.planning).length}</strong> work blocks divided (${state.werkuren} hours/day; nominally ${state.blokminuten} min each):</span>
+            <span class="text-slate-600">${verdelingTekst}</span>
+            ${aangepastTekst}
+          </div>
+        `;
+      } else {
+        samenvattingEl.innerHTML = `<span class="text-slate-500">${aantalVrij} free work blocks across ${state.werkuren} hours/day. Add activities on the left to automatically divide your week.</span>`;
+      }
+    }
+
+    function renderAlle() {
+      const melding = document.getElementById("app-message");
+      melding.textContent = "";
+      melding.classList.add("hidden");
+      updateHeaderInfo();
+      renderActiviteitenLijst();
+      renderRooster();
+    }
+
+    function formatICSDate(d, timeStr) {
+      const [hours, mins] = timeStr.split(":").map(Number);
+      const dateCopy = new Date(d);
+      dateCopy.setHours(hours, mins, 0, 0);
+
+      function pad(num) { return String(num).padStart(2, '0'); }
+      return `${dateCopy.getUTCFullYear()}${pad(dateCopy.getUTCMonth() + 1)}${pad(dateCopy.getUTCDate())}T${pad(dateCopy.getUTCHours())}${pad(dateCopy.getUTCMinutes())}${pad(dateCopy.getUTCSeconds())}Z`;
+    }
+
+    function escapeICS(tekst) {
+      return (tekst || "")
+        .replace(/\\/g, "\\\\")
+        .replace(/;/g, "\\;")
+        .replace(/,/g, "\\,")
+        .replace(/\n/g, "\\n");
+    }
+
+    function exporteerICS() {
+      if (Object.keys(state.planning).length === 0) {
+        return;
+      }
+
+      const nuUtc = formatICSDate(new Date(), `${new Date().getHours()}:${new Date().getMinutes()}`);
+      const rooster = getRooster();
+
+      const regels = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//GridLock Planner//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        `X-WR-CALNAME:${escapeICS("GridLock Planning")}`,
+        "X-WR-TIMEZONE:Europe/Amsterdam"
+      ];
+
+      for (const slotKey in state.planning) {
+        const [dStr, bStr] = slotKey.split("_").map(Number);
+        const curDate = new Date(state.startDatum);
+        curDate.setDate(curDate.getDate() + dStr);
+
+        const blokTijd = rooster.blokken[bStr];
+        const startICS = formatICSDate(curDate, blokTijd.begin);
+        const eindICS = formatICSDate(curDate, blokTijd.eind);
+        const activiteitNaam = state.planning[slotKey];
+        const uid = `gridlock-${formatDatumCompleet(curDate)}-slot${bStr}-${state.blokminuten}m@planner.local`;
+
+        regels.push(
+          "BEGIN:VEVENT",
+          `UID:${uid}`,
+          `DTSTAMP:${nuUtc}`,
+          `DTSTART:${startICS}`,
+          `DTEND:${eindICS}`,
+          `SUMMARY:${escapeICS(activiteitNaam)}`,
+          `DESCRIPTION:${escapeICS(`Block ${bStr + 1} (${blokTijd.minuten} min) - scheduled via GridLock Planner`)}`,
+          "TRANSP:OPAQUE",
+          "END:VEVENT"
+        );
+      }
+
+      regels.push("END:VCALENDAR");
+
+      const icsData = regels.join("\r\n") + "\r\n";
+      const blob = new Blob([icsData], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gridlock-planning-${formatDatumCompleet(state.startDatum)}.ics`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    }
+
+    function exporteerGoogleCalendar() {
+      if (Object.keys(state.planning).length === 0) {
+        return;
+      }
+
+      const rooster = getRooster();
+      const googleUrls = [];
+
+      for (const slotKey in state.planning) {
+        const [dagIndex, blokIndex] = slotKey.split("_").map(Number);
+        const curDate = new Date(state.startDatum);
+        curDate.setDate(curDate.getDate() + dagIndex);
+
+        const blokTijd = rooster.blokken[blokIndex];
+        const startDate = new Date(curDate);
+        const endDate = new Date(curDate);
+        const [startHour, startMinute] = blokTijd.begin.split(":").map(Number);
+        const [endHour, endMinute] = blokTijd.eind.split(":").map(Number);
+
+        startDate.setHours(startHour, startMinute, 0, 0);
+        endDate.setHours(endHour, endMinute, 0, 0);
+
+        const summary = state.planning[slotKey];
+        const details = `Scheduled via GridLock Planner\nBlock ${blokIndex + 1} (${blokTijd.minuten} min)`;
+
+        const url = new URL("https://calendar.google.com/calendar/render");
+        url.searchParams.set("action", "TEMPLATE");
+        url.searchParams.set("text", summary);
+        url.searchParams.set("details", details);
+        url.searchParams.set(
+          "dates",
+          `${startDate.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}/${endDate.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`
+        );
+
+        googleUrls.push(url.toString());
+      }
+
+      googleUrls.forEach((url, index) => {
+        window.open(url, "_blank", "noopener,noreferrer");
+      });
+
+    }
+
+    function downloadJSON() {
+      const rooster = getRooster();
+      const { bezet } = getBezetteSlots(state.eenheden, state.blokminuten);
+      const bezetConfig = {};
+
+      DAGEN.forEach((dagStr, d) => {
+        bezetConfig[dagStr] = [];
+        for (let b = 0; b < rooster.aantal; b++) {
+          if (bezet.has(`${d}_${b}`)) {
+            bezetConfig[dagStr].push(b + 1);
+          }
+        }
+      });
+
+      const configData = {
+        blokminuten: state.blokminuten,
+        werkuren: state.werkuren,
+        activiteiten: state.activiteiten,
+        bezet: bezetConfig
+      };
+
+      const jsonStr = JSON.stringify(configData, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "config.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function laadJSON(bestand) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!data || typeof data !== "object") throw new Error("Invalid JSON file");
+
+          slaGeschiedenisOp();
+          state.aangepast = false;
+          state.geschiedenis = [];
+
+          if ([60, 90, 120].includes(data.blokminuten)) {
+            state.blokminuten = data.blokminuten;
+          }
+          if ([6, 7, 8].includes(data.werkuren)) {
+            state.werkuren = data.werkuren;
+          }
+
+          if (data.activiteiten && typeof data.activiteiten === "object") {
+            state.activiteiten = {};
+            for (const k in data.activiteiten) {
+              const val = parseInt(data.activiteiten[k]);
+              state.activiteiten[k] = isNaN(val) ? 2 : Math.min(4, Math.max(1, val));
+            }
+          }
+
+          state.eenheden.clear();
+          if (data.bezet && typeof data.bezet === "object") {
+            const dagAlias = { mo: 0, tu: 1, we: 2, th: 3, fr: 4, ma: 0, di: 1, wo: 2, do: 3, vr: 4 };
+            for (const [dagStr, blokken] of Object.entries(data.bezet)) {
+              const key = dagStr.toLowerCase();
+              const d = DAGEN.indexOf(key) !== -1 ? DAGEN.indexOf(key) : (dagAlias[key] ?? -1);
+              if (d !== -1 && Array.isArray(blokken)) {
+                blokken.forEach(bNum => {
+                  const bIdx = bNum - 1;
+                  const u = getEenhedenVoorBlok(bIdx, state.blokminuten);
+                  u.forEach(eenheid => state.eenheden.add(`${d}_${eenheid}`));
+                });
+              }
+            }
+          }
+
+          maakAutomatischePlanning();
+          renderAlle();
+        } catch (err) {
+          toonFout("Could not read the configuration file: " + err.message);
+        }
+      };
+      reader.readAsText(bestand);
+    }
+
+    /* Load the dog example with the requested priorities */
+    function laadVoorbeeldData() {
+      slaGeschiedenisOp();
+      state.aangepast = false;
+      state.blokminuten = 90;
+      state.werkuren = 6;
+      state.activiteiten = {
+        "Sleep": 4,
+        "Walk": 3,
+        "Eat": 3,
+        "Cuddle": 1
+      };
+      state.eenheden.clear();
+      state.planning = {};
+      maakAutomatischePlanning();
+      renderAlle();
+    }
+
+    document.getElementById("btn-load-sample").addEventListener("click", laadVoorbeeldData);
+    document.getElementById("btn-save-json").addEventListener("click", downloadJSON);
+    document.getElementById("btn-export-calendar").addEventListener("click", () => {
+      const menu = document.getElementById("export-menu");
+      const trigger = document.getElementById("btn-export-calendar");
+      const isHidden = menu.classList.contains("hidden");
+      menu.classList.toggle("hidden", !isHidden);
+      trigger.classList.toggle("menu-open", isHidden);
+    });
+    document.getElementById("btn-export-google").addEventListener("click", () => {
+      const menu = document.getElementById("export-menu");
+      const trigger = document.getElementById("btn-export-calendar");
+      menu.classList.add("hidden");
+      trigger.classList.remove("menu-open");
+      exporteerGoogleCalendar();
+    });
+    document.getElementById("btn-export-ics").addEventListener("click", () => {
+      const menu = document.getElementById("export-menu");
+      const trigger = document.getElementById("btn-export-calendar");
+      menu.classList.add("hidden");
+      trigger.classList.remove("menu-open");
+      exporteerICS();
+    });
+    document.addEventListener("click", (event) => {
+      const menu = document.getElementById("export-menu");
+      const trigger = document.getElementById("btn-export-calendar");
+      if (!menu || !trigger) return;
+      if (!menu.contains(event.target) && !trigger.contains(event.target)) {
+        menu.classList.add("hidden");
+        trigger.classList.remove("menu-open");
+      }
+    });
+
+    const jsonInput = document.getElementById("json-file-input");
+    if (jsonInput) {
+      jsonInput.addEventListener("change", (event) => {
+        const bestand = event.target.files && event.target.files[0];
+        if (bestand) {
+          laadJSON(bestand);
+        }
+        event.target.value = "";
+      });
+    }
+
+    document.getElementById("btn-undo").addEventListener("click", ongedaanMaken);
+    document.getElementById("btn-replan").addEventListener("click", () => {
+      if (Object.keys(state.activiteiten).length === 0) return;
+      state.aangepast = false;
+      maakAutomatischePlanning();
+      renderAlle();
+    });
+    document.getElementById("btn-clear-busy").addEventListener("click", resetPlanner);
+    function wijzigWerkuren(verschil) {
+      const nieuweUren = state.werkuren + verschil;
+      if (nieuweUren < 6 || nieuweUren > 8) return;
+
+      slaGeschiedenisOp();
+      state.werkuren = nieuweUren;
+      for (const unit of state.eenheden) {
+        const unitIndex = Number(unit.split("_")[1]);
+        if (unitIndex >= state.werkuren * 2) state.eenheden.delete(unit);
+      }
+
+      if (state.aangepast) herstelHandmatigePlanning();
+      else maakAutomatischePlanning();
+      renderAlle();
+    }
+    document.getElementById("btn-hours-down").addEventListener("click", () => wijzigWerkuren(-1));
+    document.getElementById("btn-hours-up").addEventListener("click", () => wijzigWerkuren(1));
+    document.getElementById("btn-prev-week").addEventListener("click", () => {
+      const d = new Date(state.startDatum);
+      d.setDate(d.getDate() - 7);
+      state.startDatum = d;
+      renderAlle();
+    });
+    document.getElementById("btn-next-week").addEventListener("click", () => {
+      const d = new Date(state.startDatum);
+      d.setDate(d.getDate() + 7);
+      state.startDatum = d;
+      renderAlle();
+    });
+
+    function stelBloklengteIn(minuten) {
+      if (state.blokminuten === minuten) return;
+      slaGeschiedenisOp();
+      state.blokminuten = minuten;
+      if (state.aangepast) {
+        herstelHandmatigePlanning();
+      } else {
+        maakAutomatischePlanning();
+      }
+      renderAlle();
+    }
+    document.getElementById("label-120m").addEventListener("click", () => stelBloklengteIn(120));
+    document.getElementById("label-90m").addEventListener("click", () => stelBloklengteIn(90));
+    document.getElementById("label-60m").addEventListener("click", () => stelBloklengteIn(60));
+
+    document.getElementById("nieuwe-prio").addEventListener("input", () => {
+      const value = Number(document.getElementById("nieuwe-prio").value);
+      document.getElementById("nieuwe-prio-label").textContent = PRIORITEITEN[value];
+    });
+
+    document.getElementById("btn-voeg-toe").addEventListener("click", () => {
+      const input = document.getElementById("nieuwe-naam");
+      const naam = input.value.trim();
+      if (!naam) {
+        toonFout("Please enter an activity name first.");
+        input.focus();
+        return;
+      }
+      if (state.activiteiten[naam]) {
+        toonFout("This activity already exists. Please choose a different name.");
+        input.focus();
+        return;
+      }
+      document.getElementById("app-message").classList.add("hidden");
+      const prio = Number(document.getElementById("nieuwe-prio").value) || 2;
+      state.activiteiten[naam] = prio;
+      input.value = "";
+      document.getElementById("nieuwe-prio").value = 2;
+      document.getElementById("nieuwe-prio-label").textContent = "Medium";
+      state.aangepast = false;
+      maakAutomatischePlanning();
+      renderAlle();
+    });
+
+    document.getElementById("nieuwe-naam").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("btn-voeg-toe").click();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        ongedaanMaken();
+      }
+    });
+
+    renderAlle();
+  </script>
+</body>
+</html>
